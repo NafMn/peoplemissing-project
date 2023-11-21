@@ -14,7 +14,7 @@ Integrasi Cloud Computing: Menyimpan dan mengelola data menggunakan layanan clou
 
 Pusat Komando dan Kontrol: Membangun dashboard yang terpusat untuk pihak berwenang dan keluarga yang memungkinkan mereka melihat dan mengelola informasi terkait pencarian orang yang hilang.
 
-Teknologi yang Digunakan
+<h3>Teknologi yang Digunakan</h3>
 Machine Learning Frameworks: TensorFlow, PyTorch.
 
 Mobile Development: React Native untuk pengembangan aplikasi mobile cross-platform.
@@ -23,8 +23,8 @@ Cloud Computing Services: Google Cloud Platform untuk menyimpan dan mengelola da
 
 Backend: Node.js dengan Express untuk backend API.
 
-Cara Berkontribusi
-Jika Anda ingin berkontribusi pada proyek ini, silakan ikuti langkah-langkah di bawah ini:
+<h3>Cara Berkontribusi</h3>
+Jika ingin berkontribusi pada proyek ini, silakan ikuti langkah-langkah di bawah ini:
 
 Fork repository ini.
 Buat branch baru untuk fitur atau perbaikan yang ingin Anda tambahkan.
