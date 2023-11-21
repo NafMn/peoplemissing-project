@@ -26,7 +26,7 @@ Backend: Node.js dengan Express untuk backend API.
 <h3>Cara Berkontribusi</h3>
 Jika ingin berkontribusi pada proyek ini, silakan ikuti langkah-langkah di bawah ini:
 
-Fork repository ini.
+<li>Fork repository ini.</li>
 Buat branch baru untuk fitur atau perbaikan yang ingin Anda tambahkan.
 Lakukan perubahan yang diperlukan.
 Buat pull request ke branch utama.
