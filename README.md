@@ -32,3 +32,37 @@ Jika ingin berkontribusi pada proyek ini, silakan ikuti langkah-langkah di bawah
 <li>Buat pull request ke branch utama.</li>
 
 Terima kasih banyak atas kontribusinya!
+
+
+<h3>Tips</h3>
+
+app/:
+Contains the source code for your software application, including non-machine learning components.
+
+ml_model/:
+Holds the machine learning model code and related files.
+
+data/:
+Stores datasets used for training and testing.
+
+notebooks/:
+Jupyter notebooks for experimentation and analysis of machine learning models.
+
+scripts/:
+Additional scripts for data preprocessing, model training, or any automation.
+
+config/:
+Configuration files for various settings, hyperparameters, etc.
+
+utils/:
+Utility functions and helper scripts used in the project.
+
+docs/:
+Documentation for your software, including information about the machine learning model.
+
+models/:
+Directory to save and load trained machine learning models.
+
+requirements.txt:
+File specifying dependencies needed to run the software.
+
