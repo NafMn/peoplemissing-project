@@ -2,7 +2,7 @@ import string
 import os
 import random
 import pathlib
-
+import cv2
 import glob
 import numpy as np
 import pandas as pd
@@ -48,12 +48,12 @@ with tf.keras.utils.custom_object_scope({'L1Dist':L1Dist}):
 #                                                    compile=False)
 
 app   = Flask(__name__, static_url_path='/static')
-# app.config['SECRET_KEY'] = 'asd82a'
+app.config['SECRET_KEY'] = 'asd82a'
 app.config['UPLOAD_FOLDER'] = 'static/pict_test/stored_image'
 app.config['UPLOADED_FILES'] = 'static/pict_test/input_image'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root@localhost/oranghilang'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/oranghilang'
 
-# siamese_model = None
+siamese_model = None
 db = SQLAlchemy(app)
 
 path_store = 'static/pict_test/stored_image'
@@ -83,8 +83,8 @@ class Orang(db.Model):
         self.agama = agama
         self.nama_pelapor = nama_pelapor
         self.kontak = kontak
-
-db.create_all()
+with app.app_context():
+    db.create_all()
 
 @app.route('/')
 def home():
