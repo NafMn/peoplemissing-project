@@ -1,12 +1,14 @@
 'use strict';
 
 const Hapi = require('@hapi/hapi');
-const routes = require('./routes');
 const Inert = require('@hapi/inert')
-
+const routes = require('./routes');
+const predictModel = require('./predictModel');
+const Path = require('path');
 var admin = require("firebase-admin");
 
 var serviceAccount = require("../serviceAccountKey.json");
+
 
 // allow admin 
 admin.initializeApp({
@@ -15,28 +17,35 @@ admin.initializeApp({
 
 const init = async () => {
 
-    const server = Hapi.server({
-        port: 3000,
-        host: 'localhost',
-        routes: {
-            cors: {
-              origin: ['*'],
-            },
-          },
-    });
+  const server = Hapi.server({
+    port: 3000,
+    host: 'localhost',
+    routes: {
+      files: {
+        relativeTo: Path.join(__dirname, '../public')
+      },
+      cors: {
+        origin: ['*'],
+      },
+    },
+  });
 
-    server.route(routes);
+  // load model
+  // await loadModel();
 
-    await server.register(Inert);
+  // register Inert
+  await server.register(Inert);
 
-    await server.start();
-    console.log('Server running on %s', server.info.uri);
+  server.route(routes);
+
+  await server.start();
+  console.log('Server running on %s', server.info.uri);
 };
 
 process.on('unhandledRejection', (err) => {
 
-    console.log(err);
-    process.exit(1);
+  console.log(err);
+  process.exit(1);
 });
 
 init();

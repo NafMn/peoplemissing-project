@@ -1,8 +1,12 @@
+// tools
 const fs = require("fs");
 const util = require("util");
+const tf = require('@tensorflow/tfjs-node');
 const readdir = util.promisify(fs.readdir);
+// firebase
 const { initializeApp, applicationDefault, cert } = require("firebase-admin/app");
 const { getFirestore, Timestamp, FieldValue, Filter } = require("firebase-admin/firestore");
+
 
 // send photo will be used for ML to folder images
 const sendPhotoHandler = async (request, h) => {
@@ -17,11 +21,11 @@ const sendPhotoHandler = async (request, h) => {
   
       const file = photo;
       const name = file.hapi.filename;
-      const path = `../images/input/${name}`;
-      const pathFinder = `images/isNotFound/${name}`;
+      const path = `./public/images/input/${name}`;
+      const pathFinder = `images/input/${name}`;
   
       // Cek apakah file sudah ada
-      const filesInDir = await readdir("./images/input");
+      const filesInDir = await readdir("./public/images/input");
       if (filesInDir.includes(name)) {
         return h.response("File already exists").code(409);
       }
@@ -30,10 +34,11 @@ const sendPhotoHandler = async (request, h) => {
       const fileStream = fs.createWriteStream(path);
       await file.pipe(fileStream);
   
-      // input to firestore -> MissingPeople
-      await db.collection("UserSubmittedPhotos").add({
-        foto: `http://localhost:3000/${pathFinder}`,
-      });
+      // // input to firestore -> MissingPeople
+      // await db.collection("UserSubmittedPhotos").add({
+      //   foto: `http://localhost:3000/${pathFinder}`,
+      // });
+
       return h.response("Upload picture has been success");
     } catch (error) {
       // Log error di konsol atau tempatkan di file log
@@ -44,5 +49,17 @@ const sendPhotoHandler = async (request, h) => {
     }
   };
 
-  module.exports = {sendPhotoHandler};
+  const loadModelHandler = async (request, h) => {
+    try {
+      const model = await tf.loadLayersModel('http://localhost:3000/model/model.json');
+      console.log('Model loaded:', model);
+      return 'Model loaded successfully!';
+    } catch (error) {
+      console.log('Error loading model', error);
+      return h.response('Error loading model').code(500);
+    }
+  }
+
+
+  module.exports = {sendPhotoHandler, loadModelHandler};
 
