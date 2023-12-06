@@ -5,12 +5,13 @@ import random
 import cv2
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from flask import session
-from tensorflow.keras import backend
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.models import Model, Sequential
-from tensorflow.keras.layers import Input, Conv2D, Lambda, Dense, Flatten
+from keras import backend
+from keras.optimizers import Adam
+from keras.models import Model, Sequential
+from keras.layers import Input, Conv2D, Lambda, Dense, Flatten
 from keras.models import load_model
 from keras.layers import Layer
 
@@ -30,14 +31,18 @@ class L1Dist(Layer):
 #     siamese_model = load_model('model/siamesemodelv2.h5')
 
 # siamese_model = tf.keras.models.load_model('model/siamesemodelv2.h5')
-siamese_model = tf.keras.models.load_model('model/siamesemodelv2.h5',
+siamese_model = tf.keras.models.load_model('model/siamese_model.h5',
                                                 custom_objects={'L1Dist':L1Dist,
                                                     'BinaryCrossentropy':tf.losses.BinaryCrossentropy},
                                                     compile=False)
 
-path_store = 'static/pict_test/stored_image'
-path_input = 'static/pict_test/input_image'
-dir_path = r'static/pict_test/stored_image/**/*.jpg*'
+
+df = pd.DataFrame(columns=['model/siamese_model.h5', 'pred'])
+
+
+path_store = 'static/images/stored_image'
+path_input = 'static/images/input_image'
+dir_path = r'static/images/stored_image/**/*.jpg*'
 img_path = []
 for file in glob.glob(dir_path, recursive=True):
     img_path.append(file)
@@ -59,7 +64,7 @@ def pair_list(input_file_name):
 def prep(path):
     image = cv2.imread(path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = cv2.resize(image, (128,128))
+    image = cv2.resize(image, (250,250))
     image = tf.expand_dims(image, axis=0)
     return image
 
@@ -67,8 +72,8 @@ def preds(input):
     y_pred = siamese_model.predict(input)
     return y_pred[0][0]
 
-def pred_image(data):
-    input_dir = session.get('uploaded_img_file_path', None)
+def pred_image(data, img_file_path):
+    input_dir = img_file_path
     file_dir  = data['file_path']
     y_pred = []
     
