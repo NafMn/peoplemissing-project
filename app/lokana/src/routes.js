@@ -40,7 +40,7 @@ const routes = [
     },
     {
         method: 'GET',
-        path: '/loadModel',
+        path: '/loadmodel',
         handler: loadModelHandler
     }
 ];
