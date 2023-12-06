@@ -1,0 +1,78 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='/css/style.css') }}" type="text/css">
+    <style>
+        body {
+            background-image: url('/static/images/anime-1.jpg');
+            background-size: cover;
+            background-position: center;
+            background-repeat: no-repeat;
+            background-attachment: fixed;
+            color: #ffffff;
+        }
+
+        .register {
+            background-color: rgba(0, 0, 0, 0.5);
+            margin-top: 20px;
+            border-radius: 8px;
+            box-shadow: 0px 0px 10px rgba(0, 0, 0, 0.1);
+            padding: 20px;
+        }
+
+        .btn-start {
+            background-color: #343a40;
+            color: #ffffff;
+        }
+    </style>
+    <title>Find</title>
+</head>
+
+<body class="d-flex align-items-center justify-content-center">
+  
+    <div class="container-fluid">
+        <div class="row register">
+            <div class="col find-left">
+                <h1>Cari Keberadaan</h1>
+                <form action="{{ url_for('findpeople') }}" method="POST" enctype="multipart/form-data">
+                    <div class="mb-4">
+                        <input type="file" class="form-control" id="fPeople" name="uploaded_img" accept=".jpg"
+                            placeholder="Foto" required>
+                    </div>
+                    <button type="submit" class="btn btn-start">FIND</button>
+                </form>
+            </div>
+
+            <div class="col find-right">
+                <h1 style="text-align:center; margin-bottom:50px;">RESULT</h1>
+
+                {% if result == 0 %}
+                <h5 style="margin-top:50px; color:red; text-align: center;">Tidak dapat menemukan orang yang anda
+                    cari.</h5>
+                {% endif %}
+
+                {% if result %}
+                <h5 style="margin-top:50px; margin-bottom: 50px;">Orang yang mungkin anda cari :</h5>
+                {% for res in result %}
+                <div class="row mb-4">
+                    <div class="col">
+                        <img src="{{ res.fotos }}" alt="{{ loop.index }}" style="height: 200px; width: 250px;">
+                    </div>
+                </div>
+                {% endfor %}
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="/static/js/client-side.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"
+        integrity="sha384-MrcW6ZMFYlzcLA8Nl+NtUVF0sA7MsXsP1UyJoMp4YLEuNSfAP+JcXn/tWtIaxVXM"
+        crossorigin="anonymous"></script>
+</body>
+
+</html>

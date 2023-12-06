@@ -5,12 +5,13 @@ import random
 import cv2
 import tensorflow as tf
 import matplotlib.pyplot as plt
+import pandas as pd
 
 from flask import session
-from tensorflow.keras import backend
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.models import Model, Sequential
-from tensorflow.keras.layers import Input, Conv2D, Lambda, Dense, Flatten
+from keras import backend
+from keras.optimizers import Adam
+from keras.models import Model, Sequential
+from keras.layers import Input, Conv2D, Lambda, Dense, Flatten
 from keras.models import load_model
 from keras.layers import Layer
 
@@ -30,10 +31,14 @@ class L1Dist(Layer):
 #     siamese_model = load_model('model/siamesemodelv2.h5')
 
 # siamese_model = tf.keras.models.load_model('model/siamesemodelv2.h5')
-siamese_model = tf.keras.models.load_model('model/siamesemodelv2.h5',
+siamese_model = tf.keras.models.load_model('model/siamese_model.h5',
                                                 custom_objects={'L1Dist':L1Dist,
                                                     'BinaryCrossentropy':tf.losses.BinaryCrossentropy},
                                                     compile=False)
+
+
+df = pd.DataFrame(columns=['model/siamese_modelv3.h5', 'pred'])
+
 
 path_store = 'static/pict_test/stored_image'
 path_input = 'static/pict_test/input_image'
@@ -59,7 +64,7 @@ def pair_list(input_file_name):
 def prep(path):
     image = cv2.imread(path)
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
-    image = cv2.resize(image, (128,128))
+    image = cv2.resize(image, (250,250))
     image = tf.expand_dims(image, axis=0)
     return image
 

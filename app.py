@@ -39,7 +39,9 @@ class L1Dist(Layer):
 
 
 with tf.keras.utils.custom_object_scope({'L1Dist':L1Dist}):
-    siamese_model = load_model('model/siamesemodelv2.h5')
+    siamese_model = load_model('model/siamese_modelv3.h5', compile=False)
+
+siamese_model.compile(optimizer='RMSprop', loss='binary_crossentropy', metrics=['accuracy'])
 
 # load model
 # siamese_model = tf.keras.models.load_model('model/siamesemodelv2.h5',
@@ -51,7 +53,7 @@ app   = Flask(__name__, static_url_path='/static')
 app.config['SECRET_KEY'] = 'asd82a'
 app.config['UPLOAD_FOLDER'] = 'static/pict_test/stored_image'
 app.config['UPLOADED_FILES'] = 'static/pict_test/input_image'
-app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root:@localhost/oranghilang'
+app.config['SQLALCHEMY_DATABASE_URI'] = 'mysql://root@localhost/oranghilang'
 
 siamese_model = None
 db = SQLAlchemy(app)
