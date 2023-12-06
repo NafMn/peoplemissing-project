@@ -37,12 +37,12 @@ siamese_model = tf.keras.models.load_model('model/siamese_model.h5',
                                                     compile=False)
 
 
-df = pd.DataFrame(columns=['model/siamese_modelv3.h5', 'pred'])
+df = pd.DataFrame(columns=['model/siamese_model.h5', 'pred'])
 
 
-path_store = 'static/pict_test/stored_image'
-path_input = 'static/pict_test/input_image'
-dir_path = r'static/pict_test/stored_image/**/*.jpg*'
+path_store = 'static/images/stored_image'
+path_input = 'static/images/input_image'
+dir_path = r'static/images/stored_image/**/*.jpg*'
 img_path = []
 for file in glob.glob(dir_path, recursive=True):
     img_path.append(file)
@@ -72,8 +72,8 @@ def preds(input):
     y_pred = siamese_model.predict(input)
     return y_pred[0][0]
 
-def pred_image(data):
-    input_dir = session.get('uploaded_img_file_path', None)
+def pred_image(data, img_file_path):
+    input_dir = img_file_path
     file_dir  = data['file_path']
     y_pred = []
     
