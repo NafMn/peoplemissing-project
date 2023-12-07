@@ -27,7 +27,7 @@ from firebase_admin import credentials
 from firebase_admin import firestore
 
 # service account
-cred = credentials.Certificate("./service_account/serviceAccountKey.json")
+cred = credentials.Certificate("./app/lokana/serviceAccountKey.json")
 
 # init 
 app = firebase_admin.initialize_app(cred)
@@ -69,6 +69,16 @@ img_path = []
 for file in glob.glob(dir_path, recursive=True):
     img_path.append(file)
     
+ 
+@app.route('/images/stored_image/<path:params>')
+def get_store_image(params):
+    parts = params.split('/')  # Membagi params menjadi bagian-bagian
+    folder_name = parts[0]  # Menggunakan bagian pertama sebagai nama folder
+    return send_file( os.path.join(path_store, folder_name, '/'.join(parts[1:]))) 
+
+@app.route('/images/input_image/<path:params>')
+def get_input_image(params):
+    return send_file( os.path.join(path_input, params)) 
     
 # insert
 @app.route('/addpeople', methods=['POST'])
@@ -78,16 +88,16 @@ def add_people():
             # request photo
             fotos = request.files.getlist('fotos[]')
             nama = request.form.get('nama')
-            pathlib.Path(app.config['UPLOAD_FOLDER'], nama).mkdir(exist_ok=True)
-
+            nama_with_underscore = nama.replace(' ', '_')
+            pathlib.Path(app.config['UPLOAD_FOLDER'], nama_with_underscore).mkdir(exist_ok=True)
             foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
             
             for foto in fotos:     
                 filename = secure_filename(foto.filename)
                 ext = os.path.splitext(filename)[1]
                 new_filename = get_random_string(20)
-                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama, new_filename+ext))
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], nama, new_filename+ext)
+                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext))
+                file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)
                 print(file_path)
                 foto_paths.append(file_path)
         
@@ -127,7 +137,10 @@ def findpeople():
         if request.method == 'POST':
             uploaded_img = request.files['uploaded_img']
             img_filename = secure_filename(uploaded_img.filename)
+            # save to local
             uploaded_img.save(os.path.join(app.config['UPLOADED_FILES'], img_filename))
+            
+            # for compare
             img_file_path = os.path.join(app.config['UPLOADED_FILES'], img_filename) 
             file_path = img_file_path
             
@@ -135,7 +148,6 @@ def findpeople():
             userFoto = {"foto" : file_path}
             db.collection("UserSubmittedPhotos").add(userFoto) 
             
-            # return "success"
             strd_pth, inp_pth = pair_list(img_filename)
             df = pd.DataFrame(list(zip(inp_pth, strd_pth)),columns =['input_path', 'file_path'])
             # # Predict
@@ -156,9 +168,23 @@ def findpeople():
             for i in range(len(dd)):
                 if dd['pred'].iloc[i] in pred5:
                     strd.append(dd['file_path'].iloc[i])
+             
+            # koneksi database firestore 
+            MissingPersons = db.collection("MissingPersons") 
+            query = MissingPersons.where("foto", "array_contains_any", strd).stream() #array
+            # Lakukan iterasi pada hasil query untuk menampilkan dokumen yang memenuhi kondisi
+            # Buat daftar untuk menyimpan data dokumen yang cocok
+            matched_documents = []
+            # Iterasi pada hasil query dan ambil data yang diperlukan dari setiap dokumen
+            for doc in query:
+                matched_documents.append(doc.to_dict())  # Menambahkan data dokumen ke dalam daftar
+
+            # jika isinya tidak ada
+            if not matched_documents:
+                return jsonify({"error": "Data tidak ditemukan"}), 404  # Atau kode status yang sesuai
+            # Return daftar yang berisi data dokumen yang cocok sebagai respons Flask
+            return jsonify(matched_documents)
             
-            return strd         
-            # result = Orang.query.filter(Orang.fotos.in_(strd))
         
     except Exception as e:
         return jsonify({"error": str(e)}), 500    
