@@ -70,13 +70,21 @@ for file in glob.glob(dir_path, recursive=True):
     img_path.append(file)
     
  
+<<<<<<< HEAD
 @app.route('/images/stored_image/<path:params>')
+=======
+@app.route('/static/images/stored_image/<path:params>')
+>>>>>>> ml
 def get_store_image(params):
     parts = params.split('/')  # Membagi params menjadi bagian-bagian
     folder_name = parts[0]  # Menggunakan bagian pertama sebagai nama folder
     return send_file( os.path.join(path_store, folder_name, '/'.join(parts[1:]))) 
 
+<<<<<<< HEAD
 @app.route('/images/input_image/<path:params>')
+=======
+@app.route('/static/images/input_image/<path:params>')
+>>>>>>> ml
 def get_input_image(params):
     return send_file( os.path.join(path_input, params)) 
     
@@ -88,16 +96,26 @@ def add_people():
             # request photo
             fotos = request.files.getlist('fotos[]')
             nama = request.form.get('nama')
+<<<<<<< HEAD
             nama_with_underscore = nama.replace(' ', '_')
             pathlib.Path(app.config['UPLOAD_FOLDER'], nama_with_underscore).mkdir(exist_ok=True)
+=======
+            pathlib.Path(app.config['UPLOAD_FOLDER'], nama).mkdir(exist_ok=True)
+>>>>>>> ml
             foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
             
             for foto in fotos:     
                 filename = secure_filename(foto.filename)
+                print(filename)
                 ext = os.path.splitext(filename)[1]
                 new_filename = get_random_string(20)
+<<<<<<< HEAD
                 foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext))
                 file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)
+=======
+                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama, new_filename+ext))
+                file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama, new_filename+ext)
+>>>>>>> ml
                 print(file_path)
                 foto_paths.append(file_path)
         
@@ -109,6 +127,8 @@ def add_people():
             ciri_fisik = request.form['ciri_fisik']
             nomor_dihubungi = request.form['nomor_dihubungi']
             sering_ditemukan_di = request.form['sering_ditemukan_di']
+            kota = request.form['kota']
+            gender = request.form['gender']
             isFound = request.form['isFound']
             
             # # Buat dokumen baru di koleksi 'people'
@@ -121,6 +141,8 @@ def add_people():
                 "ciri_fisik" : ciri_fisik,
                 "nomor_dihubungi": nomor_dihubungi,
                 "sering_ditemukan_di" : sering_ditemukan_di,
+                'kota': kota,
+                'gender': gender,
                 "isFound": isFound 
             }
             db.collection('MissingPersons').add(addMisingPeople)
@@ -144,6 +166,8 @@ def findpeople():
             img_file_path = os.path.join(app.config['UPLOADED_FILES'], img_filename) 
             file_path = img_file_path
             
+            # save to firestore
+            file_path_firestore = os.path.join( app.config['UPLOADED_FILES'], img_filename) 
             # add path image to firestore
             userFoto = {"foto" : file_path}
             db.collection("UserSubmittedPhotos").add(userFoto) 
@@ -169,19 +193,33 @@ def findpeople():
                 if dd['pred'].iloc[i] in pred5:
                     strd.append(dd['file_path'].iloc[i])
              
+<<<<<<< HEAD
             # koneksi database firestore 
             MissingPersons = db.collection("MissingPersons") 
             query = MissingPersons.where("foto", "array_contains_any", strd).stream() #array
             # Lakukan iterasi pada hasil query untuk menampilkan dokumen yang memenuhi kondisi
             # Buat daftar untuk menyimpan data dokumen yang cocok
             matched_documents = []
+=======
+             
+            MissingPersons = db.collection("MissingPersons") 
+            query = MissingPersons.where("foto", "array_contains_any", strd).stream()
+
+            # Lakukan iterasi pada hasil query untuk menampilkan dokumen yang memenuhi kondisi
+            # Buat daftar untuk menyimpan data dokumen yang cocok
+            matched_documents = []
+
+>>>>>>> ml
             # Iterasi pada hasil query dan ambil data yang diperlukan dari setiap dokumen
             for doc in query:
                 matched_documents.append(doc.to_dict())  # Menambahkan data dokumen ke dalam daftar
 
+<<<<<<< HEAD
             # jika isinya tidak ada
             if not matched_documents:
                 return jsonify({"error": "Data tidak ditemukan"}), 404  # Atau kode status yang sesuai
+=======
+>>>>>>> ml
             # Return daftar yang berisi data dokumen yang cocok sebagai respons Flask
             return jsonify(matched_documents)
             
@@ -189,5 +227,127 @@ def findpeople():
     except Exception as e:
         return jsonify({"error": str(e)}), 500    
 
+
+# Get people by criteria
+@app.route('/getpeople', methods=['GET'])  
+# /getpeople?nama=John   
+# /getpeople?kota=Jakarta
+# /getpeople?gender=Male
+# /getpeople?nama=John&kota=Jakarta&gender=Male  
+def get_people_by_criteria():
+    try:
+        # Mendapatkan parameter dari URL
+        nama = request.args.get('nama')  
+        kota = request.args.get('kota')
+        gender = request.args.get('gender')
+
+        # Inisialisasi query tanpa filter
+        people_query = db.collection('MissingPersons')
+
+        # Menambahkan filter berdasarkan nama jika parameter nama diberikan
+        if nama:
+            people_query = people_query.where('nama', '==', nama)
+
+        # Menambahkan filter berdasarkan kota jika parameter kota diberikan
+        if kota:
+            people_query = people_query.where('kota', '==', kota)
+
+        # Menambahkan filter berdasarkan gender jika parameter gender diberikan
+        if gender:
+            people_query = people_query.where('gender', '==', gender)
+
+        # Menjalankan query
+        people_collection = people_query.stream()
+
+        # Membuat daftar untuk menyimpan data orang
+        people_list = []
+
+        # Mengambil data orang dari hasil query
+        for person in people_collection:
+            person_data = person.to_dict()
+            people_list.append(person_data)
+
+        return jsonify(people_list), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+# edit person based on name
+@app.route('/editpeople/<person_name>', methods=['PUT'])
+def edit_people_by_name(person_name):
+    try:
+        if request.method == 'PUT':
+            # Periksa apakah orang dengan nama tertentu ada
+            query = db.collection('MissingPersons').where('nama', '==', person_name)
+            results = query.stream()
+            for doc in results:
+                person_ref = doc.reference
+
+            if not person_ref.get().exists:
+                return jsonify({'error': 'Person not found'}), 404
+
+            # request photo
+            fotos = request.files.getlist('fotos[]')
+            pathlib.Path(app.config['UPLOAD_FOLDER'], person_name).mkdir(exist_ok=True)
+
+            foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
+            
+            for foto in fotos:     
+                filename = secure_filename(foto.filename)
+                ext = os.path.splitext(filename)[1]
+                new_filename = get_random_string(20)
+                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext))
+                file_path = os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext)
+                foto_paths.append(file_path)
+
+            # Ambil data dari form
+            nama = request.form.get('nama', '')
+            umur = request.form.get('umur', '')
+            tinggi = request.form.get('tinggi', '')
+            berat_badan = request.form.get('berat_badan', '')
+            ciri_fisik = request.form.get('ciri_fisik', '')
+            nomor_dihubungi = request.form.get('nomor_dihubungi', '')
+            sering_ditemukan_di = request.form.get('sering_ditemukan_di', '')
+            kota = request.form.get('kota', '')
+            gender = request.form.get('gender', '')
+            isFound = request.form.get('isFound', '')
+
+            # Update data orang
+            person_ref.update({
+                'foto': foto_paths,
+                'nama': nama,
+                'umur': umur,
+                'tinggi': tinggi,
+                'berat_badan': berat_badan,
+                'ciri_fisik': ciri_fisik,
+                'nomor_dihubungi': nomor_dihubungi,
+                'sering_ditemukan_di': sering_ditemukan_di,
+                'kota': kota,
+                'gender': gender,
+                'isFound': isFound
+            })
+
+            # Mendapatkan data yang sudah diupdate
+            updated_data = person_ref.get().to_dict()
+
+            return jsonify({'message': f'Person with name {person_name} updated successfully', 'updated_data': updated_data}), 200
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+# delete person based on name
+@app.route('/deletepeople/<person_name>', methods=['DELETE'])
+def delete_people_by_name(person_name):
+    try:
+        # Periksa apakah orang dengan nama tertentu ada
+        query = db.collection('MissingPersons').where('nama', '==', person_name)
+        results = query.stream()
+        for doc in results:
+            doc.reference.delete()
+        return jsonify({'message': f'Person with name {person_name} deleted successfully'}), 200
+    except Exception as e:
+        return jsonify({"error": str(e)}), 500
+
+
 if __name__ == '__main__':
     app.run(host="localhost", port=3000, debug=True)
+
