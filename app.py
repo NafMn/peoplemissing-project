@@ -88,7 +88,8 @@ def add_people():
             # request photo
             fotos = request.files.getlist('fotos[]')
             nama = request.form.get('nama')
-            pathlib.Path(app.config['UPLOAD_FOLDER'], nama).mkdir(exist_ok=True)
+            nama_with_underscore = nama.replace(' ', '_')
+            pathlib.Path(app.config['UPLOAD_FOLDER'], nama_with_underscore).mkdir(exist_ok=True)
             foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
             
             for foto in fotos:     
@@ -96,8 +97,8 @@ def add_people():
                 print(filename)
                 ext = os.path.splitext(filename)[1]
                 new_filename = get_random_string(20)
-                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama, new_filename+ext))
-                file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama, new_filename+ext)
+                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext))
+                file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)
                 print(file_path)
                 foto_paths.append(file_path)
         
@@ -175,18 +176,19 @@ def findpeople():
                 if dd['pred'].iloc[i] in pred5:
                     strd.append(dd['file_path'].iloc[i])
              
-             
+            # koneksi database firestore 
             MissingPersons = db.collection("MissingPersons") 
-            query = MissingPersons.where("foto", "array_contains_any", strd).stream()
-
+            query = MissingPersons.where("foto", "array_contains_any", strd).stream() #array
             # Lakukan iterasi pada hasil query untuk menampilkan dokumen yang memenuhi kondisi
             # Buat daftar untuk menyimpan data dokumen yang cocok
             matched_documents = []
-
             # Iterasi pada hasil query dan ambil data yang diperlukan dari setiap dokumen
             for doc in query:
                 matched_documents.append(doc.to_dict())  # Menambahkan data dokumen ke dalam daftar
 
+            # jika isinya tidak ada
+            if not matched_documents:
+                return jsonify({"error": "Data tidak ditemukan"}), 404  # Atau kode status yang sesuai
             # Return daftar yang berisi data dokumen yang cocok sebagai respons Flask
             return jsonify(matched_documents)
             
