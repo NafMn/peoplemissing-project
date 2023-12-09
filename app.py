@@ -26,8 +26,26 @@ import firebase_admin
 from firebase_admin import credentials
 from firebase_admin import firestore
 
-# service account
-cred = credentials.Certificate("./app/lokana/serviceAccountKey.json")
+from google.cloud import storage
+
+#  service account cloud storage
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'serviceAccountKey_storage.json'
+
+storage_client = storage.Client()
+
+# create only and running only one time
+# bucket_name = 'seek-out'
+# bucket = storage_client.bucket(bucket_name)
+# bucket.location = 'ASIA'
+# storage_client.create_bucket(bucket)
+
+# get bucket
+# my_bucket = storage_client.get_bucket('seek-out')
+
+
+
+# service account firebase
+cred = credentials.Certificate("serviceAccountKey.json")
 
 # init 
 app = firebase_admin.initialize_app(cred)
@@ -61,26 +79,8 @@ siamese_model.compile(optimizer='RMSprop', loss='binary_crossentropy', metrics=[
 app   = Flask(__name__, static_url_path='/static')
 app.config['UPLOAD_FOLDER'] = 'static/images/stored_image'
 app.config['UPLOADED_FILES'] = 'static/images/input_image'
-
-path_store = 'static/images/stored_image'
-path_input = 'static/images/input_image'
-dir_path = r'static/images/stored_image/**/*.jpg*'
-img_path = []
-for file in glob.glob(dir_path, recursive=True):
-    img_path.append(file)
     
- 
-@app.route('/static/images/stored_image/<path:params>')
-def get_store_image(params):
-    parts = params.split('/')  # Membagi params menjadi bagian-bagian
-    folder_name = parts[0]  # Menggunakan bagian pertama sebagai nama folder
-    return send_file( os.path.join(path_store, folder_name, '/'.join(parts[1:]))) 
-
-@app.route('/static/images/input_image/<path:params>')
-def get_input_image(params):
-    return send_file( os.path.join(path_input, params)) 
-    
-# insert
+# insert (Create)
 @app.route('/addpeople', methods=['POST'])
 def add_people():
     try:
@@ -89,20 +89,35 @@ def add_people():
             fotos = request.files.getlist('fotos[]')
             nama = request.form.get('nama')
             nama_with_underscore = nama.replace(' ', '_')
-            pathlib.Path(app.config['UPLOAD_FOLDER'], nama_with_underscore).mkdir(exist_ok=True)
+            # pathlib.Path(app.config['UPLOAD_FOLDER'], nama_with_underscore).mkdir(exist_ok=True)
             foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
-            
+            url_foto = [] # inisialisasi array untuk menyimpan url setiap foto
             for foto in fotos:     
                 filename = secure_filename(foto.filename)
-                print(filename)
                 ext = os.path.splitext(filename)[1]
                 new_filename = get_random_string(20)
-                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext))
-                file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)
-                print(file_path)
+                
+                # no save to directory
+                # foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext))
+                # file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)                
+                
+                # but insert to bucket cloud storage
+                bucket_name = 'seek-out'
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(f'stored_image/{nama_with_underscore}/{new_filename+ext}')
+                # save to bucket
+                # Upload foto langsung dari data yang diterima
+                blob.upload_from_string(
+                    foto.read(),  # Membaca data foto dari request
+                    content_type=foto.content_type  # Menambahkan tipe konten untuk foto
+                )
+                file_path = f'gs://{bucket_name}/stored_image/{nama_with_underscore}/{new_filename+ext}'
                 foto_paths.append(file_path)
-        
-            # Ambil data dari form
+                file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{nama_with_underscore}/{new_filename+ext}'
+                url_foto.append(file_url_path)
+                
+                
+            # retrieve the data from data form
             nama = request.form['nama']
             umur = request.form['umur']
             tinggi = request.form['tinggi']
@@ -117,6 +132,7 @@ def add_people():
             # # Buat dokumen baru di koleksi 'people'
             addMisingPeople = {
                 "foto" : foto_paths,
+                "url_foto": url_foto,
                 "nama": nama,
                 "umur" : umur,
                 "tinggi": tinggi,
@@ -135,34 +151,48 @@ def add_people():
         return jsonify({"error": str(e)}), 500
 
 
-# find people to compare
+# find people to compare 
 @app.route('/findpeople', methods=['GET', 'POST'])
 def findpeople():
     try:
         if request.method == 'POST':
             uploaded_img = request.files['uploaded_img']
             img_filename = secure_filename(uploaded_img.filename)
-            # save to local
-            uploaded_img.save(os.path.join(app.config['UPLOADED_FILES'], img_filename))
+            # no save to local
+            # uploaded_img.save(os.path.join(app.config['UPLOADED_FILES'], img_filename))
             
             # for compare
-            img_file_path = os.path.join(app.config['UPLOADED_FILES'], img_filename) 
-            file_path = img_file_path
+            # img_file_path = os.path.join(app.config['UPLOADED_FILES'], img_filename) 
+            # file_path = img_file_path
             
-            # save to firestore
-            file_path_firestore = os.path.join( app.config['UPLOADED_FILES'], img_filename) 
+            # but insert to bucket cloud storage
+            bucket_name = 'seek-out'
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(f'input_image/{img_filename}')
+            
+            # save to bucket
+            # Upload foto langsung dari data yang diterima
+            blob.upload_from_string(
+                uploaded_img.read(),  # Membaca data foto dari request
+                content_type=uploaded_img.content_type  # Menambahkan tipe konten untuk foto
+            )
+            file_path = f'gs://{bucket_name}/input_image/{img_filename}'
+            file_url_path = f'https://storage.googleapis.com/{bucket_name}/input_image/{img_filename}'
+
+            
             # add path image to firestore
-            userFoto = {"foto" : file_path}
+            userFoto = {"foto" : file_path, "url_foto" : file_url_path}
             db.collection("UserSubmittedPhotos").add(userFoto) 
             
-            strd_pth, inp_pth = pair_list(img_filename)
+            # assign to the scheme pandas
+            strd_pth, inp_pth = pair_list(img_filename) #return two list
             df = pd.DataFrame(list(zip(inp_pth, strd_pth)),columns =['input_path', 'file_path'])
-            # # Predict
-            y_pred = pred_image(df, img_file_path)
+            
+            # # # Predict -> filter the photos result above average (>= 0.5)
+            y_pred = pred_image(df, file_url_path)
             df['pred'] = y_pred
             dd = df.loc[df['pred'] >= 0.5]
-
-            # # Maksimal 5 Photo
+            # # Maksimal 5 Photo (limit 5 photos)
             n = []
             for i in range(len(dd)):
                 n.append(dd['pred'].iloc[i])
@@ -170,15 +200,15 @@ def findpeople():
             heapq.heapify(n)
             pred5 = heapq.nlargest(5, n)
 
-            # # Filtering
+            #  Filtering and return to the array photos
             strd = []
             for i in range(len(dd)):
                 if dd['pred'].iloc[i] in pred5:
-                    strd.append(dd['file_path'].iloc[i])
-             
+                    strd.append(dd['file_path'].iloc[i])  
+                       
             # koneksi database firestore 
             MissingPersons = db.collection("MissingPersons") 
-            query = MissingPersons.where("foto", "array_contains_any", strd).stream() #array
+            query = MissingPersons.where("url_foto", "array_contains_any", strd).stream() #array compare field url_foto and each strd index
             # Lakukan iterasi pada hasil query untuk menampilkan dokumen yang memenuhi kondisi
             # Buat daftar untuk menyimpan data dokumen yang cocok
             matched_documents = []
@@ -241,6 +271,7 @@ def get_people_by_criteria():
         return jsonify({"error": str(e)}), 500
 
 # edit person based on name
+#PR for edit -> if user edit photo, then replace another photo, previous photo must be deleted
 @app.route('/editpeople/<person_name>', methods=['PUT'])
 def edit_people_by_name(person_name):
     try:
@@ -256,17 +287,35 @@ def edit_people_by_name(person_name):
 
             # request photo
             fotos = request.files.getlist('fotos[]')
-            pathlib.Path(app.config['UPLOAD_FOLDER'], person_name).mkdir(exist_ok=True)
+            # pathlib.Path(app.config['UPLOAD_FOLDER'], person_name).mkdir(exist_ok=True)
 
             foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
-            
+            url_foto = [] # Inisialisasi array untuk menyimpan path setiap url foto
             for foto in fotos:     
                 filename = secure_filename(foto.filename)
                 ext = os.path.splitext(filename)[1]
                 new_filename = get_random_string(20)
-                foto.save(os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext))
-                file_path = os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext)
+                
+                # no save to directory
+                # foto.save(os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext))
+                # file_path = os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext)
+                
+                # but insert to bucket cloud storage
+                bucket_name = 'seek-out'
+                bucket = storage_client.bucket(bucket_name)
+                blob = bucket.blob(f'stored_image/{person_name}/{new_filename+ext}')
+                
+                 # save to bucket
+                 # Upload foto langsung dari data yang diterima
+                blob.upload_from_string(
+                    foto.read(),  # Membaca data foto dari request
+                    content_type=foto.content_type  # Menambahkan tipe konten untuk foto
+                )    
+                
+                file_path = f'gs://{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
                 foto_paths.append(file_path)
+                file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
+                url_foto.append(file_url_path)
 
             # Ambil data dari form
             nama = request.form.get('nama', '')
@@ -283,6 +332,7 @@ def edit_people_by_name(person_name):
             # Update data orang
             person_ref.update({
                 'foto': foto_paths,
+                'url_foto' : url_foto,
                 'nama': nama,
                 'umur': umur,
                 'tinggi': tinggi,
@@ -304,6 +354,7 @@ def edit_people_by_name(person_name):
 
 
 # delete person based on name
+# PR for delete -> delete photos in cloud storage
 @app.route('/deletepeople/<person_name>', methods=['DELETE'])
 def delete_people_by_name(person_name):
     try:
