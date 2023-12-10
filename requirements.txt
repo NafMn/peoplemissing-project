@@ -154,3 +154,5 @@ websocket-client==1.5.1
 Werkzeug==3.0.1
 widgetsnbextension==4.0.5
 wrapt==1.14.1
+gunicorn==20.1.0
+Werkzeug==3.0.1

@@ -131,3 +131,33 @@ def visualize(data):
         plt.imshow(strd_im)
         plt.title(label=f"{fl_name} have {pred} similarity with Input Image",fontsize=14)
         plt.show()
+        
+        
+# Fungsi endpoint
+# Fungsi untuk menghapus foto dari Google Cloud Storage
+def delete_gcs_folder(bucket_name, folder_path):
+    try:
+        bucket = storage.Client().bucket(bucket_name)
+
+        # Daftar semua blobs dalam folder
+        blobs = bucket.list_blobs(prefix=folder_path)
+        
+        # Hapus setiap blob dalam folder
+        for blob in blobs:
+            blob.delete()
+
+        # Hapus folder itu sendiri
+        bucket.delete_blob(folder_path)
+
+        return True
+    except Exception as e:
+        print(f"Error menghapus folder {folder_path} di bucket {bucket_name}: {str(e)}")
+        return False
+
+def delete_gcs_photo(photo_paths):
+    for photo_path in photo_paths:
+        if photo_path.startswith('gs://'):
+            bucket_name, blob_path = photo_path[len('gs://'):].split('/', 1)
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+            blob.delete()

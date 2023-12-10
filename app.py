@@ -18,7 +18,7 @@ from io import BytesIO
 from flask import Flask, render_template, request, jsonify, redirect, session, send_file
 # from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
-from fungsi import get_random_string, prep, preds, pair_list, pred_image, visualize
+from fungsi import get_random_string, prep, preds, pair_list, pred_image, visualize, delete_gcs_folder, delete_gcs_photo
 from keras.layers import Layer
 from keras.models import load_model
 
@@ -275,80 +275,78 @@ def get_people_by_criteria():
 @app.route('/editpeople/<person_name>', methods=['PUT'])
 def edit_people_by_name(person_name):
     try:
-        if request.method == 'PUT':
-            # Periksa apakah orang dengan nama tertentu ada
-            query = db.collection('MissingPersons').where('nama', '==', person_name)
-            results = query.stream()
-            for doc in results:
-                person_ref = doc.reference
+        # Periksa apakah orang dengan nama tertentu ada
+        query = db.collection('MissingPersons').where('nama', '==', person_name)
+        results = query.stream()
+        for doc in results:
+            person_ref = doc.reference
 
-            if not person_ref.get().exists:
-                return jsonify({'error': 'Person not found'}), 404
+        if not person_ref.get().exists:
+            return jsonify({'error': 'Person not found'}), 404
 
-            # request photo
-            fotos = request.files.getlist('fotos[]')
-            # pathlib.Path(app.config['UPLOAD_FOLDER'], person_name).mkdir(exist_ok=True)
+        # request foto
+        fotos = request.files.getlist('fotos[]')
 
-            foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
-            url_foto = [] # Inisialisasi array untuk menyimpan path setiap url foto
-            for foto in fotos:     
-                filename = secure_filename(foto.filename)
-                ext = os.path.splitext(filename)[1]
-                new_filename = get_random_string(20)
-                
-                # no save to directory
-                # foto.save(os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext))
-                # file_path = os.path.join(app.config['UPLOAD_FOLDER'], person_name, new_filename+ext)
-                
-                # but insert to bucket cloud storage
-                bucket_name = 'seek-out'
-                bucket = storage_client.bucket(bucket_name)
-                blob = bucket.blob(f'stored_image/{person_name}/{new_filename+ext}')
-                
-                 # save to bucket
-                 # Upload foto langsung dari data yang diterima
-                blob.upload_from_string(
-                    foto.read(),  # Membaca data foto dari request
-                    content_type=foto.content_type  # Menambahkan tipe konten untuk foto
-                )    
-                
-                file_path = f'gs://{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
-                foto_paths.append(file_path)
-                file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
-                url_foto.append(file_url_path)
+        foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
+        url_foto = []  # Inisialisasi array untuk menyimpan path setiap url foto
 
-            # Ambil data dari form
-            nama = request.form.get('nama', '')
-            umur = request.form.get('umur', '')
-            tinggi = request.form.get('tinggi', '')
-            berat_badan = request.form.get('berat_badan', '')
-            ciri_fisik = request.form.get('ciri_fisik', '')
-            nomor_dihubungi = request.form.get('nomor_dihubungi', '')
-            sering_ditemukan_di = request.form.get('sering_ditemukan_di', '')
-            kota = request.form.get('kota', '')
-            gender = request.form.get('gender', '')
-            isFound = request.form.get('isFound', '')
+        # Menghapus foto sebelumnya jika ada
+        delete_gcs_photo(person_ref.get().to_dict().get('foto', []))
 
-            # Update data orang
-            person_ref.update({
-                'foto': foto_paths,
-                'url_foto' : url_foto,
-                'nama': nama,
-                'umur': umur,
-                'tinggi': tinggi,
-                'berat_badan': berat_badan,
-                'ciri_fisik': ciri_fisik,
-                'nomor_dihubungi': nomor_dihubungi,
-                'sering_ditemukan_di': sering_ditemukan_di,
-                'kota': kota,
-                'gender': gender,
-                'isFound': isFound
-            })
+        # Loop through new photos
+        for foto in fotos:
+            filename = secure_filename(foto.filename)
+            ext = os.path.splitext(filename)[1]
+            new_filename = get_random_string(20)
 
-            # Mendapatkan data yang sudah diupdate
-            updated_data = person_ref.get().to_dict()
+            # but insert to bucket cloud storage
+            bucket_name = 'seek-out'
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(f'stored_image/{person_name}/{new_filename+ext}')
 
-            return jsonify({'message': f'Person with name {person_name} updated successfully', 'updated_data': updated_data}), 200
+            # Upload foto langsung dari data yang diterima
+            blob.upload_from_string(
+                foto.read(),  # Membaca data foto dari request
+                content_type=foto.content_type  # Menambahkan tipe konten untuk foto
+            )
+
+            file_path = f'gs://{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
+            foto_paths.append(file_path)
+            file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
+            url_foto.append(file_url_path)
+
+        # Ambil data dari form
+        nama = request.form.get('nama', '')
+        umur = request.form.get('umur', '')
+        tinggi = request.form.get('tinggi', '')
+        berat_badan = request.form.get('berat_badan', '')
+        ciri_fisik = request.form.get('ciri_fisik', '')
+        nomor_dihubungi = request.form.get('nomor_dihubungi', '')
+        sering_ditemukan_di = request.form.get('sering_ditemukan_di', '')
+        kota = request.form.get('kota', '')
+        gender = request.form.get('gender', '')
+        isFound = request.form.get('isFound', '')
+
+        # Update data orang
+        person_ref.update({
+            'foto': foto_paths,
+            'url_foto': url_foto,
+            'nama': nama,
+            'umur': umur,
+            'tinggi': tinggi,
+            'berat_badan': berat_badan,
+            'ciri_fisik': ciri_fisik,
+            'nomor_dihubungi': nomor_dihubungi,
+            'sering_ditemukan_di': sering_ditemukan_di,
+            'kota': kota,
+            'gender': gender,
+            'isFound': isFound
+        })
+
+        # Mendapatkan data yang sudah diupdate
+        updated_data = person_ref.get().to_dict()
+
+        return jsonify({'message': f'Person with name {person_name} updated successfully', 'updated_data': updated_data}), 200
     except Exception as e:
         return jsonify({'error': str(e)}), 500
 
@@ -362,8 +360,19 @@ def delete_people_by_name(person_name):
         query = db.collection('MissingPersons').where('nama', '==', person_name)
         results = query.stream()
         for doc in results:
+            # Menghapus foto dari Google Cloud Storage sebelum menghapus data orang
+            delete_gcs_photo(doc.to_dict().get('foto', []))
+            
+            # Ekstrak jalur folder dari URL foto pertama (asumsi semua foto ada dalam folder yang sama)
+            folder_path = doc.to_dict().get('foto', [])[0].split('/')[-2]
+            
+            # Hapus seluruh folder dari Google Cloud Storage
+            delete_gcs_folder('seek-out', folder_path)
+
+            # Hapus dokumen dari Firestore
             doc.reference.delete()
-        return jsonify({'message': f'Person with name {person_name} deleted successfully'}), 200
+
+        return jsonify({'message': f'Person dengan nama {person_name} berhasil dihapus'}), 200
     except Exception as e:
         return jsonify({"error": str(e)}), 500
 
