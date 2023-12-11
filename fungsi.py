@@ -6,6 +6,8 @@ import cv2
 import tensorflow as tf
 import matplotlib.pyplot as plt
 import pandas as pd
+import numpy as np
+import urllib.request
 
 from flask import session
 from keras import backend
@@ -14,6 +16,13 @@ from keras.models import Model, Sequential
 from keras.layers import Input, Conv2D, Lambda, Dense, Flatten
 from keras.models import load_model
 from keras.layers import Layer
+
+from google.cloud import storage
+
+#  service account cloud storage
+os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'serviceAccountKey_storage.json'
+
+storage_client = storage.Client()
 
 
 class L1Dist(Layer):
@@ -53,16 +62,25 @@ def get_random_string(length):
     return ''.join(random.choice(letters) for i in range(length))
 
 def pair_list(input_file_name):
-    dir_inp = os.path.join(path_input,input_file_name)
+    bucket_name = 'seek-out'
+    dir_inp = f'https://storage.googleapis.com/{bucket_name}/input_image/{input_file_name}'  # Path dari GCS
     stored_img_path = []
     input_img_path = []
-    for file in glob.glob(dir_path, recursive=True):
-        stored_img_path.append(file)
-        input_img_path.append(dir_inp)
+    
+    # Ambil path dari GCS untuk stored images
+    blobs = list(storage_client.list_blobs(bucket_name, prefix='stored_image/'))
+    for blob in blobs:
+        stored_img_path.append(f'https://storage.googleapis.com/{bucket_name}/{blob.name}')  
+        input_img_path.append(dir_inp) 
     return stored_img_path, input_img_path
 
+
 def prep(path):
-    image = cv2.imread(path)
+    # Mengambil gambar dari GCS
+    req = urllib.request.urlopen(path)
+    arr = np.asarray(bytearray(req.read()), dtype=np.uint8)
+    image = cv2.imdecode(arr, -1)  # Membaca gambar dari URL
+    
     image = cv2.cvtColor(image, cv2.COLOR_BGR2RGB)
     image = cv2.resize(image, (250,250))
     image = tf.expand_dims(image, axis=0)
@@ -86,7 +104,7 @@ def pred_image(data, img_file_path):
         im = [im_test,im_strd]
         pred = preds(im)
         y_pred.append(pred)
-
+    print(y_pred)    
     return y_pred
 
 def visualize(data):
@@ -113,3 +131,33 @@ def visualize(data):
         plt.imshow(strd_im)
         plt.title(label=f"{fl_name} have {pred} similarity with Input Image",fontsize=14)
         plt.show()
+        
+        
+# Fungsi endpoint
+# Fungsi untuk menghapus foto dari Google Cloud Storage
+def delete_gcs_folder(bucket_name, folder_path):
+    try:
+        bucket = storage.Client().bucket(bucket_name)
+
+        # Daftar semua blobs dalam folder
+        blobs = bucket.list_blobs(prefix=folder_path)
+        
+        # Hapus setiap blob dalam folder
+        for blob in blobs:
+            blob.delete()
+
+        # Hapus folder itu sendiri
+        bucket.delete_blob(folder_path)
+
+        return True
+    except Exception as e:
+        print(f"Error menghapus folder {folder_path} di bucket {bucket_name}: {str(e)}")
+        return False
+
+def delete_gcs_photo(photo_paths):
+    for photo_path in photo_paths:
+        if photo_path.startswith('gs://'):
+            bucket_name, blob_path = photo_path[len('gs://'):].split('/', 1)
+            bucket = storage_client.bucket(bucket_name)
+            blob = bucket.blob(blob_path)
+            blob.delete()
