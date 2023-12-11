@@ -62,7 +62,7 @@ def get_random_string(length):
     return ''.join(random.choice(letters) for i in range(length))
 
 def pair_list(input_file_name):
-    bucket_name = 'seek-out'
+    bucket_name = 'lokana'
     dir_inp = f'https://storage.googleapis.com/{bucket_name}/input_image/{input_file_name}'  # Path dari GCS
     stored_img_path = []
     input_img_path = []

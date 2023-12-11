@@ -34,13 +34,13 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'serviceAccountKey_storage.json'
 storage_client = storage.Client()
 
 # create only and running only one time
-# bucket_name = 'seek-out'
+# bucket_name = 'lokana'
 # bucket = storage_client.bucket(bucket_name)
 # bucket.location = 'ASIA'
 # storage_client.create_bucket(bucket)
 
-# get bucket
-# my_bucket = storage_client.get_bucket('seek-out')
+# # get bucket
+# my_bucket = storage_client.get_bucket('lokana')
 
 
 
@@ -76,11 +76,11 @@ siamese_model.compile(optimizer='RMSprop', loss='binary_crossentropy', metrics=[
 #                                                    compile=False)
 
 # configure path
-# app   = Flask(__name__, static_url_path='/static')
+app   = Flask(__name__, static_url_path='/static')
 # app.config['UPLOAD_FOLDER'] = 'static/images/stored_image'
 # app.config['UPLOADED_FILES'] = 'static/images/input_image'
     
-@app.route('/', methods=['GET']) 
+@app.route('/', methods=['GET', 'POST']) 
 def index():
     try:
         return jsonify({"success": "Hello, World"}), 200
@@ -110,7 +110,7 @@ def add_people():
                 # file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)                
                 
                 # but insert to bucket cloud storage
-                bucket_name = 'seek-out'
+                bucket_name = 'lokana'
                 bucket = storage_client.bucket(bucket_name)
                 blob = bucket.blob(f'stored_image/{nama_with_underscore}/{new_filename+ext}')
                 # save to bucket
@@ -174,7 +174,7 @@ def findpeople():
             # file_path = img_file_path
             
             # but insert to bucket cloud storage
-            bucket_name = 'seek-out'
+            bucket_name = 'lokana'
             bucket = storage_client.bucket(bucket_name)
             blob = bucket.blob(f'input_image/{img_filename}')
             
@@ -308,7 +308,7 @@ def edit_people_by_name(person_name):
             new_filename = get_random_string(20)
 
             # but insert to bucket cloud storage
-            bucket_name = 'seek-out'
+            bucket_name = 'lokana'
             bucket = storage_client.bucket(bucket_name)
             blob = bucket.blob(f'stored_image/{person_name}/{new_filename+ext}')
 
@@ -375,7 +375,7 @@ def delete_people_by_name(person_name):
             folder_path = doc.to_dict().get('foto', [])[0].split('/')[-2]
             
             # Hapus seluruh folder dari Google Cloud Storage
-            delete_gcs_folder('seek-out', folder_path)
+            delete_gcs_folder('lokana', folder_path)
 
             # Hapus dokumen dari Firestore
             doc.reference.delete()
