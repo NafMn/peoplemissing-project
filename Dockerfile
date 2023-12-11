@@ -10,6 +10,9 @@ ENV APP_HOME /app
 WORKDIR $APP_HOME
 COPY . ./
 
+# to anticipate opencv lost module when build image
+RUN apt-get update && apt-get install ffmpeg libsm6 libxext6  -y
+
 # Install production dependencies.
 RUN pip install -r requirements.txt
 
