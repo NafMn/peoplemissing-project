@@ -80,6 +80,14 @@ app   = Flask(__name__, static_url_path='/static')
 app.config['UPLOAD_FOLDER'] = 'static/images/stored_image'
 app.config['UPLOADED_FILES'] = 'static/images/input_image'
     
+@app.route('/', methods=['GET']) 
+def index():
+    try:
+        return jsonify({"success": "Hello, World"}), 200
+    except Exception as e: 
+        return jsonify({"error": str(e)}), 500  
+    
+    
 # insert (Create)
 @app.route('/addpeople', methods=['POST'])
 def add_people():
