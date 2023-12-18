@@ -161,3 +161,15 @@ def delete_gcs_photo(photo_paths):
             bucket = storage_client.bucket(bucket_name)
             blob = bucket.blob(blob_path)
             blob.delete()
+            
+counter = 1
+def generate_id():
+    global counter
+    new_id = f"{counter:02}"  # Format ID dengan 2 digit, contohnya: "01", "02", dst.
+    
+    if counter == 9:
+        counter += 1  # Menambah counter
+        return f"{counter:03}"  # Format ID dengan 3 digit setelah "09"
+    
+    counter += 1
+    return new_id            
