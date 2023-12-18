@@ -336,14 +336,17 @@ def edit_people_by_name(id):
         # Periksa apakah orang dengan nama tertentu ada
         query = db.collection('MissingPersons').where('id_people', '==', id)
         results = query.stream()
+        person_ref = None
+
         for doc in results:
             person_data = doc.to_dict()
             person_name = person_data.get('nama')
-            print(person_name)
             person_ref = doc.reference
+            # Menemukan dokumen sesuai dengan kriteria, maka hentikan loop
+            break
 
-        if not person_ref.get().exists:
-            return jsonify({'error': 'Person not found'}), 404
+        if person_ref is None:
+            return jsonify({'error': 'Person not found or criteria not met', 'status': '400'}), 400
         
         nama_with_underscore = person_name.replace(' ', '_')
         # request foto
@@ -353,11 +356,11 @@ def edit_people_by_name(id):
             if foto.filename == '':
                 return jsonify({'error': 'One or more photos are empty', 'status': '400'}), 400
 
-        foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
-        url_foto = []  # Inisialisasi array untuk menyimpan path setiap url foto
-
         # Menghapus foto sebelumnya jika ada
         delete_gcs_photo(person_ref.get().to_dict().get('foto', []))
+
+        foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
+        url_foto = []  # Inisialisasi array untuk menyimpan path setiap url foto
 
         # Loop through new photos
         for foto in fotos:
@@ -424,7 +427,7 @@ def edit_people_by_name(id):
 
         response = {
             'status': '200',
-            'message': f'Person with name {person_name} updated successfully',
+            'message': f'Person with name {nama} updated successfully',
             'updated_data': updated_data
         }
 
@@ -449,14 +452,11 @@ def delete_people_by_name(id):
             person_data = doc.to_dict()
             person_name = person_data.get('nama')
             person_ref = doc.reference
-            print("hello world pertama")
             # Menghapus foto dari Google Cloud Storage sebelum menghapus data orang
             delete_gcs_photo(person_ref.get().to_dict().get('foto', []))
 
-            print("hello world")
             # Ekstrak jalur folder dari URL foto pertama (asumsi semua foto ada dalam folder yang sama)
             folder_path = doc.to_dict().get('foto', [])[0].split('/')[-2]
-            print("hello world baru")
             # Hapus seluruh folder dari Google Cloud Storage
             delete_gcs_folder('lokana', folder_path)
 
