@@ -1,7 +1,8 @@
 // tools
 const fs = require("fs");
 const util = require("util");
-const tf = require('@tensorflow/tfjs-node');
+const tf = require('@tensorflow/tfjs');
+const {customLayer} = require('./predictModel');
 const readdir = util.promisify(fs.readdir);
 // firebase
 const { initializeApp, applicationDefault, cert } = require("firebase-admin/app");
@@ -51,6 +52,7 @@ const sendPhotoHandler = async (request, h) => {
 
   const loadModelHandler = async (request, h) => {
     try {
+      const layer = customLayer();
       const model = await tf.loadLayersModel('http://localhost:3000/model/model.json');
       console.log('Model loaded:', model);
       return 'Model loaded successfully!';

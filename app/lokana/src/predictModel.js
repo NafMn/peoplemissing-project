@@ -1,27 +1,22 @@
-// const tf = require('@tensorflow/tfjs');
+const tf = require('@tensorflow/tfjs');
+
+// Define your custom layer class
+class CustomLayer extends tf.layers.Layer {
+    constructor(config) {
+      super({});
+      this.supportsMasking = true;
+    }
+  
+    static get className() {
+      return 'CustomLayer'; // Provide a unique name for your custom layer
+    }
+  }
+  
+  // Register the custom layer class
+ tf.serialization.registerClass(CustomLayer);
+    function customLayer() {
+    return new CustomLayer();
+  }
 
 
-// // // Configure TensorFlow.js
-// let model;
-// async function loadModel() {
-// //   model = await tf.io.browserFiles("../model.json");
-//   const modelPath = ''; 
-//   const model = await tf.loadLayersModel(modelPath);
-//   return model;
-// }
-
-// // Gunakan fungsi untuk memuat model
-// loadModel()
-//   .then(model => {
-//     // Lakukan operasi lain dengan model yang dimuat di sini
-//     console.log('Model berhasil dimuat:', model);
-//   })
-//   .catch(error => {
-//     console.error('Error saat memuat model:', error);
-//   });
-
-// const predictImage = async (inputPath) => {
-//     console.log(model.predict);
-// }
-
-// module.exports = {predictImage};
+   module.exports = {customLayer};
