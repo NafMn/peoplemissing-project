@@ -287,11 +287,16 @@ def get_people_by_criteria():
 
         # Menambahkan filter berdasarkan nama jika parameter nama diberikan
         if nama:
-            people_query = people_query.where('nama', '==', nama)
+            start = nama
+            end = start + '\uf8ff'  # Menambahkan karakter Unicode sebagai batas akhir yang tinggi
+            people_query = people_query.where('nama', '>=', start).where('nama', '<', end)
+            # people_query = people_query.where('nama', '==', nama)
 
         # Menambahkan filter berdasarkan kota jika parameter kota diberikan
         if kota:
-            people_query = people_query.where('kota', '==', kota)
+            start = kota
+            end = start + '\uf8ff'  # Menambahkan karakter Unicode sebagai batas akhir yang tinggi
+            people_query = people_query.where('kota', '>=', start).where('kota', '<', end)
 
         # Menambahkan filter berdasarkan gender jika parameter gender diberikan
         if gender:
