@@ -1,3 +1,4 @@
+import uuid
 import string
 import os
 import random
@@ -18,7 +19,7 @@ from io import BytesIO
 from flask import Flask, render_template, request, jsonify, redirect, session, send_file
 # from flask_sqlalchemy import SQLAlchemy
 from werkzeug.utils import secure_filename
-from fungsi import get_random_string, prep, preds, pair_list, pred_image, visualize, delete_gcs_folder, delete_gcs_photo
+from fungsi import get_random_string, prep, preds, pair_list, pred_image, visualize, delete_gcs_folder, delete_gcs_photo, generate_id
 from keras.layers import Layer
 from keras.models import load_model
 
@@ -34,13 +35,13 @@ os.environ['GOOGLE_APPLICATION_CREDENTIALS'] = 'serviceAccountKey_storage.json'
 storage_client = storage.Client()
 
 # create only and running only one time
-# bucket_name = 'seek-out'
+# bucket_name = 'lokana'
 # bucket = storage_client.bucket(bucket_name)
 # bucket.location = 'ASIA'
 # storage_client.create_bucket(bucket)
 
 # get bucket
-# my_bucket = storage_client.get_bucket('seek-out')
+# my_bucket = storage_client.get_bucket('lokana')
 
 
 
@@ -76,7 +77,7 @@ siamese_model.compile(optimizer='RMSprop', loss='binary_crossentropy', metrics=[
 #                                                    compile=False)
 
 # configure path
-# app   = Flask(__name__, static_url_path='/static')
+app   = Flask(__name__, static_url_path='/static')
 # app.config['UPLOAD_FOLDER'] = 'static/images/stored_image'
 # app.config['UPLOADED_FILES'] = 'static/images/input_image'
     
@@ -95,36 +96,35 @@ def add_people():
         if request.method == 'POST':
             # request photo
             fotos = request.files.getlist('fotos[]')
+            # Memeriksa apakah daftar file foto kosong atau tidak ada
+            for foto in fotos:
+                if foto.filename == '':
+                    return jsonify({'error': 'One or more photos are empty', 'status': '400'}), 400
             nama = request.form.get('nama')
             nama_with_underscore = nama.replace(' ', '_')
-            # pathlib.Path(app.config['UPLOAD_FOLDER'], nama_with_underscore).mkdir(exist_ok=True)
             foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
-            url_foto = [] # inisialisasi array untuk menyimpan url setiap foto
-            for foto in fotos:     
+            url_foto = []  # Inisialisasi array untuk menyimpan url setiap foto
+            for foto in fotos:
                 filename = secure_filename(foto.filename)
                 ext = os.path.splitext(filename)[1]
                 new_filename = get_random_string(20)
-                
-                # no save to directory
-                # foto.save(os.path.join(app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext))
-                # file_path = os.path.join( app.config['UPLOAD_FOLDER'], nama_with_underscore, new_filename+ext)                
-                
-                # but insert to bucket cloud storage
-                bucket_name = 'seek-out'
+
+                bucket_name = 'lokana'
                 bucket = storage_client.bucket(bucket_name)
                 blob = bucket.blob(f'stored_image/{nama_with_underscore}/{new_filename+ext}')
-                # save to bucket
+                
                 # Upload foto langsung dari data yang diterima
                 blob.upload_from_string(
                     foto.read(),  # Membaca data foto dari request
                     content_type=foto.content_type  # Menambahkan tipe konten untuk foto
                 )
+                
                 file_path = f'gs://{bucket_name}/stored_image/{nama_with_underscore}/{new_filename+ext}'
                 foto_paths.append(file_path)
+                
                 file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{nama_with_underscore}/{new_filename+ext}'
                 url_foto.append(file_url_path)
-                
-                
+
             # retrieve the data from data form
             nama = request.form['nama']
             umur = request.form['umur']
@@ -136,27 +136,52 @@ def add_people():
             kota = request.form['kota']
             gender = request.form['gender']
             isFound = request.form['isFound']
-            
-            # # Buat dokumen baru di koleksi 'people'
-            addMisingPeople = {
-                "foto" : foto_paths,
+
+            expected_data = ['nama', 'umur', 'tinggi', 'berat_badan', 'ciri_fisik', 
+                     'nomor_dihubungi', 'sering_ditemukan_di', 'kota', 
+                     'gender', 'isFound']
+    
+            # Memeriksa keberadaan semua data yang diharapkan dalam permintaan form
+            for data_key in expected_data:
+                if data_key not in request.form or not request.form[data_key]:
+                    return jsonify({'error': f'Missing or empty data: {data_key}', 'status': '400'}), 400
+
+            # create id random
+            new_id = generate_id()
+
+            # Buat dokumen baru di koleksi 'people'
+            addMissingPeople = {
+                "id_people" : new_id,
+                "foto": foto_paths,
                 "url_foto": url_foto,
                 "nama": nama,
-                "umur" : umur,
+                "umur": umur,
                 "tinggi": tinggi,
                 "berat_badan": berat_badan,
-                "ciri_fisik" : ciri_fisik,
+                "ciri_fisik": ciri_fisik,
                 "nomor_dihubungi": nomor_dihubungi,
-                "sering_ditemukan_di" : sering_ditemukan_di,
+                "sering_ditemukan_di": sering_ditemukan_di,
                 'kota': kota,
                 'gender': gender,
-                "isFound": isFound 
+                "isFound": isFound
             }
-            db.collection('MissingPersons').add(addMisingPeople)
             
-            return jsonify({"success": "Person added successfully"}), 200
+            db.collection('MissingPersons').add(addMissingPeople)
+
+
+            response = {
+                "status": "200",
+                "message": "Person added successfully",
+                "data": addMissingPeople
+            }
+
+            return jsonify(response), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        response = {
+            "status": "500",
+            "message": str(e)
+        }
+        return jsonify(response), 500
 
 
 # find people to compare 
@@ -165,6 +190,8 @@ def findpeople():
     try:
         if request.method == 'POST':
             uploaded_img = request.files['uploaded_img']
+            if not uploaded_img:
+                return jsonify({'error': 'No photos found in the request', 'status': '400'}), 400
             img_filename = secure_filename(uploaded_img.filename)
             # no save to local
             # uploaded_img.save(os.path.join(app.config['UPLOADED_FILES'], img_filename))
@@ -174,7 +201,7 @@ def findpeople():
             # file_path = img_file_path
             
             # but insert to bucket cloud storage
-            bucket_name = 'seek-out'
+            bucket_name = 'lokana'
             bucket = storage_client.bucket(bucket_name)
             blob = bucket.blob(f'input_image/{img_filename}')
             
@@ -226,9 +253,14 @@ def findpeople():
 
             # jika isinya tidak ada
             if not matched_documents:
-                return jsonify({"error": "Data tidak ditemukan"}), 404  # Atau kode status yang sesuai
+                return jsonify({"error": "Data tidak ditemukan", "status" : "400"}), 404  # Atau kode status yang sesuai
             # Return daftar yang berisi data dokumen yang cocok sebagai respons Flask
-            return jsonify(matched_documents)
+            response = {
+                "status": "200",
+                "message": "Searching person successfully",
+                "data": matched_documents
+            }
+            return jsonify(response), 200
             
         
     except Exception as e:
@@ -236,33 +268,43 @@ def findpeople():
 
 
 # Get people by criteria
-@app.route('/getpeople', methods=['GET'])  
+@app.route('/getpeople', methods=['GET'])
 # /getpeople?nama=John   
 # /getpeople?kota=Jakarta
 # /getpeople?gender=Male
-# /getpeople?nama=John&kota=Jakarta&gender=Male  
+# /getpeople?nama=John&kota=Jakarta&gender=Male 
+# /getpeople?id_people=id_people 
 def get_people_by_criteria():
     try:
         # Mendapatkan parameter dari URL
-        nama = request.args.get('nama')  
+        nama = request.args.get('nama')
         kota = request.args.get('kota')
         gender = request.args.get('gender')
+        id_people = request.args.get('id_people')
 
         # Inisialisasi query tanpa filter
         people_query = db.collection('MissingPersons')
 
         # Menambahkan filter berdasarkan nama jika parameter nama diberikan
         if nama:
-            people_query = people_query.where('nama', '==', nama)
+            start = nama
+            end = start + '\uf8ff'  # Menambahkan karakter Unicode sebagai batas akhir yang tinggi
+            people_query = people_query.where('nama', '>=', start).where('nama', '<', end)
+            # people_query = people_query.where('nama', '==', nama)
 
         # Menambahkan filter berdasarkan kota jika parameter kota diberikan
         if kota:
-            people_query = people_query.where('kota', '==', kota)
+            start = kota
+            end = start + '\uf8ff'  # Menambahkan karakter Unicode sebagai batas akhir yang tinggi
+            people_query = people_query.where('kota', '>=', start).where('kota', '<', end)
 
         # Menambahkan filter berdasarkan gender jika parameter gender diberikan
         if gender:
             people_query = people_query.where('gender', '==', gender)
 
+        # Menambahkan filter berdasarkan id_people jika parameter id_people diberikan
+        if id_people:
+            people_query = people_query.where('id_people', '==', id_people)
         # Menjalankan query
         people_collection = people_query.stream()
 
@@ -274,32 +316,56 @@ def get_people_by_criteria():
             person_data = person.to_dict()
             people_list.append(person_data)
 
-        return jsonify(people_list), 200
+        if not people_list:  # Memeriksa apakah list kosong
+            return jsonify({'error': 'people has not found', 'status': '400'}), 400
+
+        response = {
+            "status": "200",
+            "message": "Data retrieved successfully",
+            "data": people_list
+        }
+
+        return jsonify(response), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        response = {
+            "status": "400",
+            "message": str(e)
+        }
+        return jsonify(response), 400
 
 # edit person based on name
 #PR for edit -> if user edit photo, then replace another photo, previous photo must be deleted
-@app.route('/editpeople/<person_name>', methods=['PUT'])
-def edit_people_by_name(person_name):
+@app.route('/editpeople/<id>', methods=['PUT'])
+def edit_people_by_name(id):
     try:
         # Periksa apakah orang dengan nama tertentu ada
-        query = db.collection('MissingPersons').where('nama', '==', person_name)
+        query = db.collection('MissingPersons').where('id_people', '==', id)
         results = query.stream()
+        person_ref = None
+
         for doc in results:
+            person_data = doc.to_dict()
+            person_name = person_data.get('nama')
             person_ref = doc.reference
+            # Menemukan dokumen sesuai dengan kriteria, maka hentikan loop
+            break
 
-        if not person_ref.get().exists:
-            return jsonify({'error': 'Person not found'}), 404
-
+        if person_ref is None:
+            return jsonify({'error': 'Person not found or criteria not met', 'status': '400'}), 400
+        
+        nama_with_underscore = person_name.replace(' ', '_')
         # request foto
         fotos = request.files.getlist('fotos[]')
 
-        foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
-        url_foto = []  # Inisialisasi array untuk menyimpan path setiap url foto
+        for foto in fotos:
+            if foto.filename == '':
+                return jsonify({'error': 'One or more photos are empty', 'status': '400'}), 400
 
         # Menghapus foto sebelumnya jika ada
         delete_gcs_photo(person_ref.get().to_dict().get('foto', []))
+
+        foto_paths = []  # Inisialisasi array untuk menyimpan path setiap foto
+        url_foto = []  # Inisialisasi array untuk menyimpan path setiap url foto
 
         # Loop through new photos
         for foto in fotos:
@@ -308,9 +374,9 @@ def edit_people_by_name(person_name):
             new_filename = get_random_string(20)
 
             # but insert to bucket cloud storage
-            bucket_name = 'seek-out'
+            bucket_name = 'lokana'
             bucket = storage_client.bucket(bucket_name)
-            blob = bucket.blob(f'stored_image/{person_name}/{new_filename+ext}')
+            blob = bucket.blob(f'stored_image/{nama_with_underscore}/{new_filename+ext}')
 
             # Upload foto langsung dari data yang diterima
             blob.upload_from_string(
@@ -318,10 +384,20 @@ def edit_people_by_name(person_name):
                 content_type=foto.content_type  # Menambahkan tipe konten untuk foto
             )
 
-            file_path = f'gs://{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
+            file_path = f'gs://{bucket_name}/stored_image/{nama_with_underscore}/{new_filename+ext}'
             foto_paths.append(file_path)
-            file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{person_name}/{new_filename+ext}'
+            file_url_path = f'https://storage.googleapis.com/{bucket_name}/stored_image/{nama_with_underscore}/{new_filename+ext}'
             url_foto.append(file_url_path)
+
+        expected_data = ['nama', 'umur', 'tinggi', 'berat_badan', 'ciri_fisik', 
+                 'nomor_dihubungi', 'sering_ditemukan_di', 'kota', 
+                 'gender', 'isFound']
+
+        # Memeriksa keberadaan semua data yang diharapkan dalam permintaan form
+        for data_key in expected_data:
+            if data_key not in request.form or not request.form[data_key]:
+                return jsonify({'error': f'Missing or empty data: {data_key}', 'status': '400'}), 400
+  
 
         # Ambil data dari form
         nama = request.form.get('nama', '')
@@ -354,37 +430,58 @@ def edit_people_by_name(person_name):
         # Mendapatkan data yang sudah diupdate
         updated_data = person_ref.get().to_dict()
 
-        return jsonify({'message': f'Person with name {person_name} updated successfully', 'updated_data': updated_data}), 200
+        response = {
+            'status': '200',
+            'message': f'Person with name {nama} updated successfully',
+            'updated_data': updated_data
+        }
+
+        return jsonify(response), 200
     except Exception as e:
-        return jsonify({'error': str(e)}), 500
+        response = {
+            'status': '500',
+            'message': str(e)
+        }
+        return jsonify(response), 500
 
 
 # delete person based on name
 # PR for delete -> delete photos in cloud storage
-@app.route('/deletepeople/<person_name>', methods=['DELETE'])
-def delete_people_by_name(person_name):
+@app.route('/deletepeople/<id>', methods=['DELETE'])
+def delete_people_by_name(id):
     try:
         # Periksa apakah orang dengan nama tertentu ada
-        query = db.collection('MissingPersons').where('nama', '==', person_name)
+        query = db.collection('MissingPersons').where('id_people', '==', id)
         results = query.stream()
         for doc in results:
+            person_data = doc.to_dict()
+            person_name = person_data.get('nama')
+            person_ref = doc.reference
             # Menghapus foto dari Google Cloud Storage sebelum menghapus data orang
-            delete_gcs_photo(doc.to_dict().get('foto', []))
-            
+            delete_gcs_photo(person_ref.get().to_dict().get('foto', []))
+
             # Ekstrak jalur folder dari URL foto pertama (asumsi semua foto ada dalam folder yang sama)
             folder_path = doc.to_dict().get('foto', [])[0].split('/')[-2]
-            
             # Hapus seluruh folder dari Google Cloud Storage
-            delete_gcs_folder('seek-out', folder_path)
+            delete_gcs_folder('lokana', folder_path)
 
             # Hapus dokumen dari Firestore
             doc.reference.delete()
 
-        return jsonify({'message': f'Person dengan nama {person_name} berhasil dihapus'}), 200
+        response = {
+            'status': '200',
+            'message': f'Person dengan nama {person_name} berhasil dihapus'
+        }
+
+        return jsonify(response), 200
     except Exception as e:
-        return jsonify({"error": str(e)}), 500
+        response = {
+            'status': '500',
+            'message': str(e)
+        }
+        return jsonify(response), 500
 
 
 if __name__ == '__main__':
-    app.run(host="localhost", port=3000, debug=True)
+    app.run(debug=True, host="0.0.0.0", port=int(os.environ.get("PORT", 8080)))
 
